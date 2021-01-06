@@ -26,11 +26,19 @@ bot.on("message", async (message) => {
         args.shift();
         const cmd = args[0].toLowerCase();
 
-        if (cmd === "hi") {
-            message.reply("Hi");
-        } else if (cmd === "vision") {
-            // listen for image
-            if (args.length > 1) {
+        if (cmd === "vision") {
+            vision(message, args);
+        } else {
+            message.channel.send("I don't know what command that is.");
+            return;
+        }
+    }
+
+    return;
+});
+
+const vision = (message, args) => {
+    if (args.length > 1) {
                 const url = args[1];
                 message.channel.send(url);
             } else {
@@ -51,14 +59,7 @@ bot.on("message", async (message) => {
                         );
                     });
             }
-        } else {
-            message.channel.send("I don't know what command that is.");
-            return;
-        }
-    }
-
-    return;
-});
+}
 
 process.on("uncaughtException", (err) => {
     const errorMsg = err.stack.replace(new RegExp(`${__dirname}/`, "g"), "./");
