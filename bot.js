@@ -1,6 +1,6 @@
+const amqp = require("amqplib");
 const config = require("./config.json");
 const Discord = require("discord.js");
-
 const bot = new Discord.Client({
     disableEveryone: true,
     disabledEvents: ["TYPING_START"],
@@ -21,13 +21,21 @@ bot.on("message", async (message) => {
         console.log(message.author.username, ": ", message.content);
 
         const msg = message.content.slice(config.prefix.length);
-
         const args = msg.split(" ");
         args.shift();
         const cmd = args[0].toLowerCase();
 
         if (cmd === "vision") {
             vision(message, args);
+        } else if (cmd === "publish") {
+            const input = {
+                job: args[1],
+                channelId: message.channel.id,
+            };
+            publish(input);
+    
+        } else if (cmd === "consume"){
+            consume(message.channel);
         } else {
             message.channel.send("I don't know what command that is.");
             return;
@@ -38,6 +46,7 @@ bot.on("message", async (message) => {
 });
 
 const vision = (message, args) => {
+    // TODO: Check if image link or direct image
     if (args.length > 1) {
                 const url = args[1];
                 message.channel.send(url);
@@ -52,14 +61,50 @@ const vision = (message, args) => {
                     .then((collected) => {
                         if (collected.first().content === "cancel") {
                             message.reply("Canceled.");
+                        } else if (collected.first().attachments.first()){
+                            message.channel.send(
+                                collected.first().attachments.first().url
+                            );
+                        } else {
+                            message.reply("Not an image.");
                         }
-                        console.log(collected.first().attachments.first().url);
-                        message.channel.send(
-                            collected.first().attachments.first().url
-                        );
+                        
                     });
             }
+    consume(message.channel);
 }
+
+const publish = async function(msg) {
+    try{
+        const amqpServer = "amqp://localhost:5672";
+        const connection = await amqp.connect(amqpServer);
+        const channel = await connection.createChannel();
+        await channel.sendToQueue("jobs", Buffer.from(JSON.stringify(msg)));
+        console.log(`Job sent successfully ${msg.job}`);
+    }
+    catch (ex){
+        console.error(ex);
+    }
+};
+
+const consume = async function(discordChannel) {
+    try {
+        const amqpServer = "amqp://localhost:5672";
+        const connection = await amqp.connect(amqpServer);
+        const channel = await connection.createChannel();
+        channel.consume("jobs", msg => {
+            const input = JSON.parse(msg.content.toString());
+            console.log(`Recieved job with input ${input.job}`);
+            bot.channels.cache.get(input.channelId).send(input.job);
+            //discordChannel.send(input.job);
+            channel.ack(msg);
+        })
+
+    }
+    catch (ex){
+        console.error(ex);
+    }
+};
 
 process.on("uncaughtException", (err) => {
     const errorMsg = err.stack.replace(new RegExp(`${__dirname}/`, "g"), "./");
