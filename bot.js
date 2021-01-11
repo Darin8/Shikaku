@@ -9,6 +9,7 @@ const bot = new Discord.Client({
 bot.login(config.token);
 
 bot.on("ready", () => {
+    consume();
     console.log(
         `Bot is online!\n${bot.users.size} users, in ${bot.guilds.size} servers connected.`
     );
@@ -34,8 +35,6 @@ bot.on("message", async (message) => {
             };
             publish(input);
     
-        } else if (cmd === "consume"){
-            consume(message.channel);
         } else {
             message.channel.send("I don't know what command that is.");
             return;
@@ -71,7 +70,6 @@ const vision = (message, args) => {
                         
                     });
             }
-    consume(message.channel);
 }
 
 const publish = async function(msg) {
@@ -87,7 +85,7 @@ const publish = async function(msg) {
     }
 };
 
-const consume = async function(discordChannel) {
+const consume = async function() {
     try {
         const amqpServer = "amqp://localhost:5672";
         const connection = await amqp.connect(amqpServer);
@@ -96,7 +94,6 @@ const consume = async function(discordChannel) {
             const input = JSON.parse(msg.content.toString());
             console.log(`Recieved job with input ${input.job}`);
             bot.channels.cache.get(input.channelId).send(input.job);
-            //discordChannel.send(input.job);
             channel.ack(msg);
         })
 
